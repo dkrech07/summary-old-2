@@ -9,50 +9,34 @@ use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
 use app\models\ContactForm;
+use app\models\User;
+use app\models\SignupForm;
+use app\services\SummaryService;
+use yii\data\ActiveDataProvider;
+use yii\data\Pagination;
+use app\models\ItemForm;
+use app\models\Account;
+use app\models\AccountForm;
+use yii\widgets\ActiveForm;
+use yii\web\UploadedFile;
+use app\models\Summary;
 
-class SiteController extends Controller
+use Aws\S3\S3Client;
+use Aws\Exception\AwsException;
+use Aws\S3\MultipartUploader;
+use Aws\Exception\MultipartUploadException;
+
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\BadResponseException;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ServerException;
+use GuzzleHttp\Psr7\Request;
+
+use Orhanerday\OpenAi\OpenAi;
+
+class SiteController extends SecuredController
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function behaviors()
-    {
-        return [
-            'access' => [
-                'class' => AccessControl::class,
-                'only' => ['logout'],
-                'rules' => [
-                    [
-                        'actions' => ['logout'],
-                        'allow' => true,
-                        'roles' => ['@'],
-                    ],
-                ],
-            ],
-            'verbs' => [
-                'class' => VerbFilter::class,
-                'actions' => [
-                    'logout' => ['post'],
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function actions()
-    {
-        return [
-            'error' => [
-                'class' => 'yii\web\ErrorAction',
-            ],
-            'captcha' => [
-                'class' => 'yii\captcha\CaptchaAction',
-                'fixedVerifyCode' => YII_ENV_TEST ? 'testme' : null,
-            ],
-        ];
-    }
+    public $layout = 'summary';
 
     /**
      * Displays homepage.
@@ -61,68 +45,96 @@ class SiteController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
-    }
+        $user = Yii::$app->user->identity;
+        $summaryService = new SummaryService;
+        $itemFormModel = new ItemForm();
+        $accountFormModel = new accountForm();
 
-    /**
-     * Login action.
-     *
-     * @return Response|string
-     */
-    public function actionLogin()
-    {
-        if (!Yii::$app->user->isGuest) {
-            return $this->goHome();
+        // Вывод элементов на странице
+        $query = Summary::find()
+            ->orderBy('id DESC')
+            ->joinWith('summaryStatus');
+
+        $query = $summaryService->getSummaryItems();
+        $countQuery = clone $query;
+        $pages = new Pagination(['totalCount' => $countQuery->count()]);
+        $models = $query->offset($pages->offset)
+            ->limit(15)
+            ->all();
+
+        // Редактирование учетных данных для Яндекс Storage
+        if ($accountFormModel->load(Yii::$app->request->post())) {
+            $accountFormModel->load(Yii::$app->request->post());
+
+            if (Yii::$app->request->isAjax) {
+                Yii::$app->response->format = Response::FORMAT_JSON;
+                return ActiveForm::validate($accountFormModel);
+            }
+
+            if ($accountFormModel->validate()) {
+                $summaryService->editAccount($accountFormModel);
+                $this->refresh();
+            }
         }
 
-        $model = new LoginForm();
-        if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            return $this->goBack();
+        // Создание и редактирование элемента
+        if ($itemFormModel->load(Yii::$app->request->post())) {
+
+            $itemFormModel->load(Yii::$app->request->post());
+
+            if (isset($itemFormModel->file)) {
+                $itemFormModel->file = UploadedFile::getInstance($itemFormModel, 'file');
+            }
+
+            if (Yii::$app->request->isAjax) {
+                Yii::$app->response->format = Response::FORMAT_JSON;
+                return ActiveForm::validate($itemFormModel);
+            }
+
+            if ($itemFormModel->validate()) {
+                $summaryService->createItem($itemFormModel);
+                $this->refresh();
+            }
         }
 
-        $model->password = '';
-        return $this->render('login', [
-            'model' => $model,
-        ]);
+        $summaryService->getDescription();
+
+        return $this->render(
+            'index',
+            [
+                'user' => $user,
+                'models' => $models,
+                'pages' => $pages,
+                'itemFormModel' => $itemFormModel,
+                'accountFormModel' => $accountFormModel,
+            ]
+        );
     }
 
-    /**
-     * Logout action.
-     *
-     * @return Response
-     */
     public function actionLogout()
     {
-        Yii::$app->user->logout();
-
+        \Yii::$app->user->logout();
         return $this->goHome();
     }
 
-    /**
-     * Displays contact page.
-     *
-     * @return Response|string
-     */
-    public function actionContact()
+    public function actionEdit()
     {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->contact(Yii::$app->params['adminEmail'])) {
-            Yii::$app->session->setFlash('contactFormSubmitted');
+        $user = Yii::$app->user->identity;
+        $summaryService = new SummaryService;
+        $itemFormModel = new ItemForm();
+        $accountFormModel = new accountForm();
 
-            return $this->refresh();
+        if (\Yii::$app->request->isAjax && \Yii::$app->request->post()) {
+            $request = Yii::$app->request;
+            $data = $request->post();
+
+            if (key($data) == 'item_id_detail') {
+                return json_encode($summaryService->getDetailItem($data['item_id_detail']), JSON_UNESCAPED_UNICODE);
+            }
+
+            if (key($data) == 'item_id_summary') {
+                return json_encode($summaryService->getSummmaryItem($data['item_id_summary']), JSON_UNESCAPED_UNICODE);
+            }
         }
-        return $this->render('contact', [
-            'model' => $model,
-        ]);
-    }
-
-    /**
-     * Displays about page.
-     *
-     * @return string
-     */
-    public function actionAbout()
-    {
-        return $this->render('about');
     }
 }
