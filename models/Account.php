@@ -13,6 +13,9 @@ use Yii;
  * @property string|null $y_secret_key
  * @property string|null $api_secret_key
  * @property string|null $bucket_name
+ * @property string|null $openai_api_key
+ * @property string|null $openai_chat_model
+ * @property string|null $openai_request
  *
  * @property User $user
  */
@@ -34,7 +37,7 @@ class Account extends \yii\db\ActiveRecord
         return [
             [['user_id'], 'required'],
             [['user_id'], 'integer'],
-            [['y_key_id', 'y_secret_key', 'api_secret_key', 'bucket_name'], 'string'],
+            [['y_key_id', 'y_secret_key', 'api_secret_key', 'bucket_name', 'openai_api_key', 'openai_chat_model', 'openai_request'], 'string'],
             [['user_id'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['user_id' => 'id']],
         ];
     }
@@ -51,6 +54,9 @@ class Account extends \yii\db\ActiveRecord
             'y_secret_key' => 'Y Secret Key',
             'api_secret_key' => 'Api Secret Key',
             'bucket_name' => 'Bucket Name',
+            'openai_api_key' => 'Openai Api Key',
+            'openai_chat_model' => 'Openai Chat Model',
+            'openai_request' => 'Openai Request',
         ];
     }
 

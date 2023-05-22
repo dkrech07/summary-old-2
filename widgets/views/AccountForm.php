@@ -15,17 +15,28 @@ use yii\widgets\ActiveForm;
       </div>
       <?php $form = ActiveForm::begin(['id' => 'account']); ?>
       <div class="modal-body">
+        <h3 class="account-title">Настройки Yandex Cloud</h3>
         <div class="mb-3">
-          <?= $form->field($formModel, 'api_secret_key')->textInput(['autofocus' => true, 'placeholder' => "Укажите секретный API ключ"]); ?>
+          <?= $form->field($formModel, 'api_secret_key')->textInput(['autofocus' => true]); ?>
         </div>
         <div class="mb-3">
-          <?= $form->field($formModel, 'y_key_id')->textInput(['placeholder' => "Указите статический ключ"]); ?>
+          <?= $form->field($formModel, 'y_key_id')->textInput(); ?>
         </div>
         <div class="mb-3">
-          <?= $form->field($formModel, 'y_secret_key')->textInput(['placeholder' => "Укажите секретный ключ"]); ?>
+          <?= $form->field($formModel, 'y_secret_key')->textInput(); ?>
         </div>
         <div class="mb-3">
-          <?= $form->field($formModel, 'bucket_name')->textInput(['placeholder' => "Укажите название бакета"]); ?>
+          <?= $form->field($formModel, 'bucket_name')->textInput(); ?>
+        </div>
+        <h3 class="account-title">Настройки OpenAI</h3>
+        <div class="mb-3">
+          <?= $form->field($formModel, 'openai_api_key')->textInput(); ?>
+        </div>
+        <div class="mb-3">
+          <?= $form->field($formModel, 'openai_chat_model')->textInput(); ?>
+        </div>
+        <div class="mb-3">
+          <?= $form->field($formModel, 'openai_request')->textInput(); ?>
         </div>
       </div>
       <div class="modal-footer">

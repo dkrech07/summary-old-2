@@ -58,7 +58,7 @@ itemEditElement.forEach(element => {
       };
 
       $.ajax({
-        url: '/summary/web/site/edit',
+        url: '/site/edit',
         type: 'POST',
         data: data,
         success: function (response) {
@@ -126,7 +126,7 @@ itemEditElement.forEach(element => {
       console.log(editParam);
 
       $.ajax({
-        url: '/summary/web/site/edit',
+        url: '/site/edit',
         type: 'POST',
         data: data,
         success: function (response) {

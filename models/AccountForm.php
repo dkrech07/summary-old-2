@@ -19,6 +19,9 @@ class AccountForm extends Model
   public $y_key_id;
   public $y_secret_key;
   public $bucket_name;
+  public $openai_api_key;
+  public $openai_chat_model;
+  public $openai_request;
 
   /**
    * {@inheritdoc}
@@ -34,7 +37,7 @@ class AccountForm extends Model
   public function rules()
   {
     return [
-      [['y_key_id', 'y_secret_key', 'api_secret_key', 'bucket_name'], 'string'],
+      [['y_key_id', 'y_secret_key', 'api_secret_key', 'bucket_name', 'openai_api_key', 'openai_chat_model', 'openai_request'], 'string'],
     ];
   }
 
@@ -45,10 +48,13 @@ class AccountForm extends Model
   {
     return [
       'id' => 'ID',
-      'y_key_id' => 'Ключ доступа',
-      'y_secret_key' => 'Ключ доступа',
-      'api_secret_key' => 'API-ключ',
-      'bucket_name' => 'Bucket Name',
+      'api_secret_key' => 'API ключ - Ваш секретный ключ',
+      'y_key_id' => 'Статический ключ доступа - Идентификатор ключа',
+      'y_secret_key' => 'Статический ключ доступа - Ваш секретный ключ',
+      'bucket_name' => 'Название бакета',
+      'openai_api_key' => 'Ключ OpenAI',
+      'openai_chat_model' => 'Модель чата OpenAI',
+      'openai_request' => 'Текст запроса к чату GPT',
     ];
   }
 }

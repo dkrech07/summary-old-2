@@ -49,10 +49,10 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
               </li>
             </ul>
           <?php else : ?>
-            <form class="d-flex">
+            <!-- <form class="d-flex">
               <input class="form-control me-2" type="search" placeholder="Поиск" aria-label="Поиск">
               <button class="btn btn-outline-success" type="submit">Поиск</button>
-            </form>
+            </form> -->
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
               <li class="nav-item">
                 <a class="add-new-item nav-link active" aria-current="page" href="#">Добавить запись</a>
