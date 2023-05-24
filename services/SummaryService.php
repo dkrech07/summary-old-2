@@ -26,268 +26,317 @@ use GuzzleHttp\Psr7\Request;
 
 class SummaryService
 {
+  // Проверка наличия доступов
+  public static function accessCheck()
+  {
+    $account = Account::find()
+      ->where(['user_id' => Yii::$app->user->identity->id])
+      ->one();
 
-    // Получает текущую дату и время;
-    public static function getCurrentDate(): string
-    {
-      $expression = new Expression('NOW()');
-      $now = (new \yii\db\Query)->select($expression)->scalar();
-      return $now;
+    if (
+      !isset($account->y_key_id) || !isset($account->y_secret_key) || !isset($account->api_secret_key)
+      || !isset($account->bucket_name) || !isset($account->openai_api_key) || !isset($account->openai_chat_model)
+      || !isset($account->openai_request)
+    ) {
+      return false;
+    } else {
+      return $account;
+    }
+  }
+
+  // Получает текущую дату и время;
+  public static function getCurrentDate(): string
+  {
+    $expression = new Expression('NOW()');
+    $now = (new \yii\db\Query)->select($expression)->scalar();
+    return $now;
+  }
+
+  // Выводит список записей;
+  public function getSummaryItems()
+  {
+    return Summary::find()
+      ->orderBy('id DESC')
+      ->joinWith('summaryStatus');
+  }
+
+  // Выводит подробное описание;
+  public function getDetailItem($data)
+  {
+    $detailItems = Detail::find()
+      ->where(['summary_id' => $data])
+      ->all();
+
+    $summaryItem = Summary::find()
+      ->where(['id' => $data])
+      ->one();
+
+    $detailItemsList = [];
+
+    foreach ($detailItems as $detailItem) {
+      $detailForm = new DetailForm;
+      $detailForm->summary_id = $detailItem->summary_id;
+      $detailForm->title = $summaryItem->title;
+      $detailForm->detail_text = $detailItem->detail_text;
+      $detailItemsList[] = $detailForm;
     }
 
-    // Загружает аудиозапись в Яндекс Storage;
-    public function uploadYandexStorage($uploadPath, $fileName, $account)
-    {
-      $sharedConfig = [
-        'credentials' => [
-          'key' => $account->y_key_id,
-          'secret' => $account->y_secret_key,
+    return $detailItemsList;
+  }
+
+  // Выводит краткое описание;
+  public function getSummmaryItem($data)
+  {
+    $summaryItem =  Summary::find()
+      ->where(['id' => $data])
+      ->one();
+
+    $summaryForm = new SummaryForm;
+    $summaryForm->summary_id = $summaryItem->id;
+    $summaryForm->title = $summaryItem->title;
+    $summaryForm->summary_text = $summaryItem->summary;
+
+    return $summaryForm;
+  }
+
+  // Получает краткое описание от Chat GPT;
+  public function getSummary($data, $account)
+  {
+    $open_ai_key = $account->openai_api_key; //getenv('OPENAI_API_KEY');
+    $open_ai = new OpenAi($open_ai_key);
+
+    $chat = $open_ai->chat([
+      'model' => $account->openai_chat_model, //'gpt-3.5-turbo',
+      'messages' => [
+        [
+          "role" => "user",
+          "content" => $account->openai_request . ': ' . $data,
         ],
-        'version' => 'latest',
-        'endpoint' => 'https://storage.yandexcloud.net',
-        'region' => 'ru-central1',
-      ];
-  
-      $s3Client = new S3Client($sharedConfig);
-  
-      $uploader = new MultipartUploader($s3Client, $uploadPath, [
-        'bucket' => $account->bucket_name,
-        'key' => $fileName,
-      ]);
-  
-      try {
-        $result = $uploader->upload();
-        echo "Upload complete: {$result['ObjectURL']}\n";
-      } catch (MultipartUploadException $e) {
-        echo $e->getMessage() . "\n";
-      }
-  
-      unlink($uploadPath);
-      return $account->bucket_name . '/' . $fileName;
-    }
+      ],
+      // 'temperature' => 1.0,
+      // 'max_tokens' => 4000,
+      // 'frequency_penalty' => 0,
+      // 'presence_penalty' => 0,
+    ]);
 
-    // Выводит список записей;
-    public function getSummaryItems()
-    {
-      return Summary::find()
-        ->orderBy('id DESC')
-        ->joinWith('summaryStatus');
-    }
+    $d = json_decode($chat);
 
-    // Выводит подробное описание;
-    public function getDetailItem($data)
-    {
-      $detailItems = Detail::find()
-        ->where(['summary_id' => $data])
-        ->all();
-  
-      $summaryItem = Summary::find()
-        ->where(['id' => $data])
-        ->one();
-  
-      $detailItemsList = [];
-  
-      foreach ($detailItems as $detailItem) {
-        $detailForm = new DetailForm;
-        $detailForm->summary_id = $detailItem->summary_id;
-        $detailForm->title = $summaryItem->title;
-        $detailForm->detail_text = $detailItem->detail_text;
-        $detailItemsList[] = $detailForm;
-      }
-  
-      return $detailItemsList;
-    }
+    // print($data);
+    // print('<br>');
+    // print('<br>');
+    // print('<br>');
+    // print_r($d->choices[0]->message->content);
+    // exit;
 
-    // Выводит краткое описание;
-    public function getSummmaryItem($data)
-    {
-      $summaryItem =  Summary::find()
-        ->where(['id' => $data])
-        ->one();
-  
-      $summaryForm = new SummaryForm;
-      $summaryForm->summary_id = $summaryItem->id;
-      $summaryForm->title = $summaryItem->title;
-      $summaryForm->summary_text = $summaryItem->summary;
-  
-      return $summaryForm;
-    }
-
-    // Получает подробное описание от Яндекс SpeechKit;
-    public function decodeAudio($yandexStorageFile, $extension, $account)
-    {
-  
-      $extensionsMap = [
-        'pcm' => 'LINEAR16_PCM',
-        'ogg' => 'OGG_OPUS',
-        'mp3' => 'MP3',
-      ];
-  
-      $url = "https://transcribe.api.cloud.yandex.net";
-  
-      $client = new Client([
-        'base_uri' => $url,
-      ]);
-  
-      $response = $client->request('POST', '/speech/stt/v2/longRunningRecognize', [
-        'headers' => [
-          'Authorization' => 'Api-Key ' . $account->api_secret_key
-        ],
-        'json' => [
-          'config' => [
-            'specification' => [
-              'languageCode' => 'ru-RU',
-              'model' => 'general',
-              // 'profanityFilter' => true,
-              'audioEncoding' => $extensionsMap[$extension],
-              // 'sampleRateHertz' => '48000',
-              // 'audioChannelCount' => '1',
-              'literature_text' => true,
-            ]
-          ],
-          'audio' => [
-            'uri' => 'https://storage.yandexcloud.net/' . $yandexStorageFile,
-          ]
-        ]
-      ]);
-  
-      $body = $response->getBody();
-      $arr_body = json_decode($body);
-      return $arr_body->id;
-    }
-
-    // Получает краткое описание от Chat GPT;
-    public function getSummary($data, $account)
-    {
-      $open_ai_key = $account->openai_api_key; //getenv('OPENAI_API_KEY');
-      $open_ai = new OpenAi($open_ai_key);
-  
-      $chat = $open_ai->chat([
-        'model' => $account->openai_chat_model, //'gpt-3.5-turbo',
-        'messages' => [
-          [
-            "role" => "user",
-            "content" => $account->openai_request . ': ' . $data,
-          ],
-        ],
-        // 'temperature' => 1.0,
-        // 'max_tokens' => 4000,
-        // 'frequency_penalty' => 0,
-        // 'presence_penalty' => 0,
-      ]);
-  
-      $d = json_decode($chat);
+    if (isset($d->choices[0]->message->content)) {
       return $d->choices[0]->message->content;
+    } else {
+      return false; //'упс...ошибка...'
     }
-  
-    // Выводит запись на страницу - получает подробное описание;
-    public function getDescription()
-    {
-        $account = Account::find()
-        ->where(['user_id' => Yii::$app->user->identity->id])
-        ->one();
+  }
 
-        $summaryListDecoding = Summary::find()
-        ->where(['created_user' => Yii::$app->user->identity->id, 'summary_status' => 1])
-        ->all();
+  public function getDescription()
+  {
+    // '1' => 'Конвертация речи в текст'
+    // '2' => 'Получение краткого описания'
+    // '3' => 'Готово'
+    // '4' => 'Ошибка, проверьте исходные данные'
 
-        if ($summaryListDecoding) {
-            // sleep(60);
-            foreach ($summaryListDecoding as $item) {
-                if (isset($item->decode_id)) {  
-                    $url = "https://operation.api.cloud.yandex.net/operations/";
+    $account = $this->accessCheck();
 
-                    $client = new Client([
-                        'base_uri' => $url,
-                    ]);
-        
-                    $response = $client->request('GET', $item->decode_id, [
-                        'headers' => [
-                        'Authorization' => 'Api-Key ' . $account->api_secret_key
-                        ]
-                    ]);
-        
-                    $body = $response->getBody();
-                    $arr_body = json_decode($body);
-                    if ($arr_body->done) {
+    if (!$account) {
+      return;
+    }
 
-                        // Сохраняю данные в таблицу Summary;
-                        $chunksList = $arr_body->response->chunks;
-                        $item->detail = $arr_body->response->chunks[0]->alternatives[0]->text;
-                        $item->updated_at = $this->getCurrentDate();
-                        $item->summary_status = 2; // Получение краткого описания;
-                        $item->summary = $this->getSummary($chunksList[0]->alternatives[0]->text, $account);  // Получаю один из вариантов расшифровки текста;
-                    
-                        // Сохраняю данные в таблицу Detail;
-                        $newDetail = new Detail;
-                        $newDetail->summary_id = $item->id;
-                        $newDetail->detail_text = $arr_body->response->chunks[0]->alternatives[0]->text; // $chunkItem->alternatives[0]->text;
+    // Загружено аудио;
+    $audioList = Summary::find()
+      ->where(['created_user' => Yii::$app->user->identity->id, 'summary_status' => 1])
+      ->all();
 
-                        $transaction2 = Yii::$app->db->beginTransaction();
-                        try {
-                          $newDetail->save();
-                          $transaction2->commit();
-                        } catch (\Exception $e) {
-                          $transaction2->rollBack();
-                          throw $e;
-                        } catch (\Throwable $e) {
-                          $transaction2->rollBack();
-                        }
+    // Загружено подробное описание / Аудио преобразовано в подробное описание;
+    $descriptionList = Summary::find()
+      ->joinWith('details')
+      ->where(['created_user' => Yii::$app->user->identity->id, 'summary_status' => 2])
+      ->all();
 
+    // Подготовлено краткое описание;
+    // $summaryList = Summary::find()
+    //   ->where(['created_user' => Yii::$app->user->identity->id, 'summary_status' => 3])
+    //   ->all();
 
-                    } else {
-                        $item->updated_at = $this->getCurrentDate();
-                        $item->summary_status = 4;
-                    }
+    if ($audioList) {
+      foreach ($audioList as $item) {
+        if (isset($item->decode_id)) {
+          $url = "https://operation.api.cloud.yandex.net/operations/";
 
-                    $transaction = Yii::$app->db->beginTransaction();
-                    try {
-                        $item->save();
-                        $transaction->commit();
-                      } catch (\Exception $e) {
-                        $transaction->rollBack();
-                        throw $e;
-                      } catch (\Throwable $e) {
-                        $transaction->rollBack();
-                      }
-                }
+          $client = new Client([
+            'base_uri' => $url,
+          ]);
+
+          $response = $client->request('GET', $item->decode_id, [
+            'headers' => [
+              'Authorization' => 'Api-Key ' . $account->api_secret_key
+            ]
+          ]);
+
+          $body = $response->getBody();
+          $arr_body = json_decode($body);
+
+          if ($arr_body->done) {
+            $chunksList = $arr_body->response->chunks;
+            $item->updated_at = $this->getCurrentDate();
+            $item->summary_status = 2;
+
+            $newDetail = new Detail;
+            $newDetail->summary_id = $item->id;
+            $newDetail->detail_text = $arr_body->response->chunks[0]->alternatives[0]->text; // $chunkItem->alternatives[0]->text;
+
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+              $item->save();
+              $newDetail->save();
+
+              $transaction->commit();
+            } catch (\Exception $e) {
+              $transaction->rollBack();
+              throw $e;
+            } catch (\Throwable $e) {
+              $transaction->rollBack();
             }
+          }
         }
+      }
     }
 
-    // Создает новую запись;
-    public function createItem(ItemForm $itemFormModel)
-    {
-      $account = Account::find()
-        ->where(['user_id' => Yii::$app->user->identity->id])
-        ->one();
-  
-      $itemsCount = Summary::find()
-        ->where(['created_user' => Yii::$app->user->identity->id])
-        ->count();
-  
-      $newItem = new Summary;
-  
-      if ($itemFormModel->file) {
-        $fileName = substr(md5(microtime() . rand(0, 9999)), 0, 8) . '.' . $itemFormModel->file->extension;
-        $uploadPath = './upload' . '/' . $fileName;
-        $itemFormModel->file->saveAs($uploadPath);
-        $newItem->file = $this->uploadYandexStorage($uploadPath, $fileName, $account);
-  
-        $newItem->decode_id = $this->decodeAudio($newItem->file, $itemFormModel->file->extension, $account);
-        $newItem->summary_status = 1; // Конвертация речи в текст;
-      } else {
-        $newItem->summary_status = 2; // Получение краткого описания;
+    if ($descriptionList) {
+      foreach ($descriptionList as $item) {
+        // print_r($item);
+        // exit;
+
+        $descriptionText = $this->getSummary($item->details[0]->detail_text, $account);
+
+        if ($descriptionText) {
+          $item->summary = $this->getSummary($descriptionText, $account);
+          $item->summary_status = 3;
+        }
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+          $item->save();
+          $transaction->commit();
+        } catch (\Exception $e) {
+          $transaction->rollBack();
+          throw $e;
+        } catch (\Throwable $e) {
+          $transaction->rollBack();
+        }
       }
-  
-      $newItem->number = $itemsCount + 1;
-      $newItem->title = $itemFormModel->title;
-      $newItem->detail = $itemFormModel->detail;
-      $newItem->summary = $itemFormModel->summary;
-      $newItem->created_user = Yii::$app->user->identity->id;
-      $newItem->created_at = $this->getCurrentDate();
-      $newItem->updated_at = $this->getCurrentDate();
-  
+    }
+  }
+
+  // Загружает аудиозапись в Яндекс Storage;
+  public function uploadYandexStorage($uploadPath, $fileName, $account)
+  {
+    $sharedConfig = [
+      'credentials' => [
+        'key' => $account->y_key_id,
+        'secret' => $account->y_secret_key,
+      ],
+      'version' => 'latest',
+      'endpoint' => 'https://storage.yandexcloud.net',
+      'region' => 'ru-central1',
+    ];
+
+    $s3Client = new S3Client($sharedConfig);
+
+    $uploader = new MultipartUploader($s3Client, $uploadPath, [
+      'bucket' => $account->bucket_name,
+      'key' => $fileName,
+    ]);
+
+    try {
+      $result = $uploader->upload();
+      echo "Upload complete: {$result['ObjectURL']}\n";
+    } catch (MultipartUploadException $e) {
+      echo $e->getMessage() . "\n";
+    }
+
+    unlink($uploadPath);
+    return $account->bucket_name . '/' . $fileName;
+  }
+
+  // Получает подробное описание от Яндекс SpeechKit;
+  public function decodeAudio($yandexStorageFile, $extension, $account)
+  {
+
+    $extensionsMap = [
+      'pcm' => 'LINEAR16_PCM',
+      'ogg' => 'OGG_OPUS',
+      'mp3' => 'MP3',
+    ];
+
+    $url = "https://transcribe.api.cloud.yandex.net";
+
+    $client = new Client([
+      'base_uri' => $url,
+    ]);
+
+    $response = $client->request('POST', '/speech/stt/v2/longRunningRecognize', [
+      'headers' => [
+        'Authorization' => 'Api-Key ' . $account->api_secret_key
+      ],
+      'json' => [
+        'config' => [
+          'specification' => [
+            'languageCode' => 'ru-RU',
+            'model' => 'general',
+            // 'profanityFilter' => true,
+            'audioEncoding' => $extensionsMap[$extension],
+            // 'sampleRateHertz' => '48000',
+            // 'audioChannelCount' => '1',
+            'literature_text' => true,
+          ]
+        ],
+        'audio' => [
+          'uri' => 'https://storage.yandexcloud.net/' . $yandexStorageFile,
+        ]
+      ]
+    ]);
+
+    $body = $response->getBody();
+    $arr_body = json_decode($body);
+    return $arr_body->id;
+  }
+
+  // Создает новую запись;
+  public function createItem(ItemForm $itemFormModel) // НАЧАТЬ ОТСЮДА!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  {
+    $account = $this->accessCheck();
+
+    if (!$account) {
+      return;
+    }
+
+    $itemsCount = Summary::find()
+      ->where(['created_user' => Yii::$app->user->identity->id])
+      ->count();
+
+    $newItem = new Summary;
+
+    $newItem->number = $itemsCount + 1;
+    $newItem->title = $itemFormModel->title;
+    $newItem->created_user = Yii::$app->user->identity->id;
+    $newItem->created_at = $this->getCurrentDate();
+    $newItem->updated_at = $this->getCurrentDate();
+
+    if ($itemFormModel->file) {
+      $fileName = substr(md5(microtime() . rand(0, 9999)), 0, 8) . '.' . $itemFormModel->file->extension;
+      $uploadPath = './upload' . '/' . $fileName;
+      $itemFormModel->file->saveAs($uploadPath);
+      $newItem->file = $this->uploadYandexStorage($uploadPath, $fileName, $account);
+      $newItem->decode_id = $this->decodeAudio($newItem->file, $itemFormModel->file->extension, $account);
+      $newItem->summary_status = 1; // Конвертация речи в текст;
+
       $transaction = Yii::$app->db->beginTransaction();
       try {
         $newItem->save();
@@ -298,31 +347,44 @@ class SummaryService
       } catch (\Throwable $e) {
         $transaction->rollBack();
       }
-    }
-
-    // Редактирует данные для доступа к Яндекс Storage и Chat GPT;
-    public function editAccount(AccountForm $accountFormModel)
-    {
-      $editAccount = Account::find()
-        ->where(['user_id' => Yii::$app->user->identity->id])
-        ->one();
-  
-      if (!$editAccount) {
-        $editAccount = new Account;
-        $editAccount->user_id = Yii::$app->user->identity->id;
+    } else {
+      $newItem->summary_status = 2; // Получение краткого описания;
+      $transaction = Yii::$app->db->beginTransaction();
+      try {
+        $newItem->save();
+        $transaction->commit();
+      } catch (\Exception $e) {
+        $transaction->rollBack();
+        throw $e;
+      } catch (\Throwable $e) {
+        $transaction->rollBack();
       }
-  
-      $editAccount->api_secret_key = $accountFormModel->api_secret_key;
-      $editAccount->y_key_id = $accountFormModel->y_key_id;
-      $editAccount->y_secret_key = $accountFormModel->y_secret_key;
-      $editAccount->bucket_name = $accountFormModel->bucket_name;
-      $editAccount->openai_api_key = $accountFormModel->openai_api_key;
-      $editAccount->openai_chat_model = $accountFormModel->openai_chat_model;
-      $editAccount->openai_request = $accountFormModel->openai_request;
+
+      $newDetail = new Detail;
+      $newDetail->detail_text = $itemFormModel->detail;
+      $newDetail->summary_id = $newItem->id;
+      $transaction2 = Yii::$app->db->beginTransaction();
+      try {
+        $newDetail->save();
+        $transaction2->commit();
+      } catch (\Exception $e) {
+        $transaction2->rollBack();
+        throw $e;
+      } catch (\Throwable $e) {
+        $transaction2->rollBack();
+      }
+
+      // print($newItem->id);
+      // exit;
+      // print($itemFormModel->detail);
+      // exit;
+
 
       $transaction = Yii::$app->db->beginTransaction();
       try {
-        $editAccount->save();
+        $newItem->save();
+        $newDetail->save();
+
         $transaction->commit();
       } catch (\Exception $e) {
         $transaction->rollBack();
@@ -331,4 +393,37 @@ class SummaryService
         $transaction->rollBack();
       }
     }
+  }
+
+  // Редактирует данные для доступа к Яндекс Storage и Chat GPT;
+  public function editAccount(AccountForm $accountFormModel)
+  {
+    $editAccount = Account::find()
+      ->where(['user_id' => Yii::$app->user->identity->id])
+      ->one();
+
+    if (!$editAccount) {
+      $editAccount = new Account;
+      $editAccount->user_id = Yii::$app->user->identity->id;
+    }
+
+    $editAccount->api_secret_key = $accountFormModel->api_secret_key;
+    $editAccount->y_key_id = $accountFormModel->y_key_id;
+    $editAccount->y_secret_key = $accountFormModel->y_secret_key;
+    $editAccount->bucket_name = $accountFormModel->bucket_name;
+    $editAccount->openai_api_key = $accountFormModel->openai_api_key;
+    $editAccount->openai_chat_model = $accountFormModel->openai_chat_model;
+    $editAccount->openai_request = $accountFormModel->openai_request;
+
+    $transaction = Yii::$app->db->beginTransaction();
+    try {
+      $editAccount->save();
+      $transaction->commit();
+    } catch (\Exception $e) {
+      $transaction->rollBack();
+      throw $e;
+    } catch (\Throwable $e) {
+      $transaction->rollBack();
+    }
+  }
 }

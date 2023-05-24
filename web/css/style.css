@@ -81,3 +81,7 @@
 .account-title {
   font-size: 1rem;
 }
+
+.refresh {
+  vertical-align: bottom !important;
+}

@@ -99,6 +99,16 @@ class SiteController extends SecuredController
 
         $summaryService->getDescription();
 
+        if (\Yii::$app->request->isAjax && \Yii::$app->request->post()) {
+            $request = Yii::$app->request;
+            $data = $request->post();
+
+            if (key($data) == 'refresh') {
+                $summaryService->getDescription();
+                return json_encode('test', JSON_UNESCAPED_UNICODE);
+            }
+        }
+
         return $this->render(
             'index',
             [
@@ -116,6 +126,22 @@ class SiteController extends SecuredController
         \Yii::$app->user->logout();
         return $this->goHome();
     }
+
+    // public function actionRefresh() {
+    //     // Обновление данных в списке элементов
+    //     if (\Yii::$app->request->isAjax && \Yii::$app->request->post()) {
+    //         $request = Yii::$app->request;
+    //         $data = $request->post();
+
+    //         if (key($data) == 'refresh') {
+
+    //             $summaryService->getDescription();
+    //             $this->redirect('/');
+
+    //             return json_encode('test', JSON_UNESCAPED_UNICODE);
+    //         }
+    //     }
+    // }
 
     public function actionEdit()
     {

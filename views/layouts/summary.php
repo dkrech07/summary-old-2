@@ -63,6 +63,9 @@ $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii
               <li class="nav-item">
                 <a class="nav-link active" aria-current="page" href="/site/logout">Выход</a>
               </li>
+              <li class="nav-item refresh">
+                <button class="btn btn-outline-success" type="submit"><i class="bi bi-arrow-clockwise"></i></button>
+              </li>
             </ul>
           <?php endif; ?>
         </div>
