@@ -52,6 +52,8 @@ class SiteController extends SecuredController
         $itemFormModel = new ItemForm();
         $accountFormModel = new accountForm();
 
+        $descriptionServise = new DescriptionServise;
+
         // Вывод элементов на странице
         $query = Summary::find()
             ->orderBy('id DESC')
@@ -99,7 +101,7 @@ class SiteController extends SecuredController
             }
         }
 
-        $DescriptionServise->getDescription();
+        $descriptionServise->getDescription();
 
         if (\Yii::$app->request->isAjax && \Yii::$app->request->post()) {
             $request = Yii::$app->request;
