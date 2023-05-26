@@ -97,14 +97,14 @@ class SiteController extends SecuredController
             }
         }
 
-        $summaryService->getDescription();
+        // $summaryService->getDescription();
 
         if (\Yii::$app->request->isAjax && \Yii::$app->request->post()) {
             $request = Yii::$app->request;
             $data = $request->post();
 
             if (key($data) == 'refresh') {
-                $summaryService->getDescription();
+                // $summaryService->getDescription();
                 return json_encode('test', JSON_UNESCAPED_UNICODE);
             }
         }

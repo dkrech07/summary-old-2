@@ -135,104 +135,104 @@ class SummaryService
     }
   }
 
-  public function getDescription()
-  {
-    // '1' => 'Конвертация речи в текст'
-    // '2' => 'Получение краткого описания'
-    // '3' => 'Готово'
-    // '4' => 'Ошибка, проверьте исходные данные'
+  // public function getDescription()
+  // {
+  //   // '1' => 'Конвертация речи в текст'
+  //   // '2' => 'Получение краткого описания'
+  //   // '3' => 'Готово'
+  //   // '4' => 'Ошибка, проверьте исходные данные'
 
-    $account = $this->accessCheck();
+  //   $account = $this->accessCheck();
 
-    if (!$account) {
-      return;
-    }
+  //   if (!$account) {
+  //     return;
+  //   }
 
-    // Загружено аудио;
-    $audioList = Summary::find()
-      ->where(['created_user' => Yii::$app->user->identity->id, 'summary_status' => 1])
-      ->all();
+  //   // Загружено аудио;
+  //   $audioList = Summary::find()
+  //     ->where(['created_user' => Yii::$app->user->identity->id, 'summary_status' => 1])
+  //     ->all();
 
-    // Загружено подробное описание / Аудио преобразовано в подробное описание;
-    $descriptionList = Summary::find()
-      ->joinWith('details')
-      ->where(['created_user' => Yii::$app->user->identity->id, 'summary_status' => 2])
-      ->all();
+  //   // Загружено подробное описание / Аудио преобразовано в подробное описание;
+  //   $descriptionList = Summary::find()
+  //     ->joinWith('details')
+  //     ->where(['created_user' => Yii::$app->user->identity->id, 'summary_status' => 2])
+  //     ->all();
 
-    // Подготовлено краткое описание;
-    // $summaryList = Summary::find()
-    //   ->where(['created_user' => Yii::$app->user->identity->id, 'summary_status' => 3])
-    //   ->all();
+  //   // Подготовлено краткое описание;
+  //   // $summaryList = Summary::find()
+  //   //   ->where(['created_user' => Yii::$app->user->identity->id, 'summary_status' => 3])
+  //   //   ->all();
 
-    if ($audioList) {
-      foreach ($audioList as $item) {
-        if (isset($item->decode_id)) {
-          $url = "https://operation.api.cloud.yandex.net/operations/";
+  //   if ($audioList) {
+  //     foreach ($audioList as $item) {
+  //       if (isset($item->decode_id)) {
+  //         $url = "https://operation.api.cloud.yandex.net/operations/";
 
-          $client = new Client([
-            'base_uri' => $url,
-          ]);
+  //         $client = new Client([
+  //           'base_uri' => $url,
+  //         ]);
 
-          $response = $client->request('GET', $item->decode_id, [
-            'headers' => [
-              'Authorization' => 'Api-Key ' . $account->api_secret_key
-            ]
-          ]);
+  //         $response = $client->request('GET', $item->decode_id, [
+  //           'headers' => [
+  //             'Authorization' => 'Api-Key ' . $account->api_secret_key
+  //           ]
+  //         ]);
 
-          $body = $response->getBody();
-          $arr_body = json_decode($body);
+  //         $body = $response->getBody();
+  //         $arr_body = json_decode($body);
 
-          if ($arr_body->done) {
-            $chunksList = $arr_body->response->chunks;
-            $item->updated_at = $this->getCurrentDate();
-            $item->summary_status = 2;
+  //         if ($arr_body->done) {
+  //           $chunksList = $arr_body->response->chunks;
+  //           $item->updated_at = $this->getCurrentDate();
+  //           $item->summary_status = 2;
 
-            $newDetail = new Detail;
-            $newDetail->summary_id = $item->id;
-            $newDetail->detail_text = $arr_body->response->chunks[0]->alternatives[0]->text; // $chunkItem->alternatives[0]->text;
+  //           $newDetail = new Detail;
+  //           $newDetail->summary_id = $item->id;
+  //           $newDetail->detail_text = $arr_body->response->chunks[0]->alternatives[0]->text; // $chunkItem->alternatives[0]->text;
 
-            $transaction = Yii::$app->db->beginTransaction();
-            try {
-              $item->save();
-              $newDetail->save();
+  //           $transaction = Yii::$app->db->beginTransaction();
+  //           try {
+  //             $item->save();
+  //             $newDetail->save();
 
-              $transaction->commit();
-            } catch (\Exception $e) {
-              $transaction->rollBack();
-              throw $e;
-            } catch (\Throwable $e) {
-              $transaction->rollBack();
-            }
-          }
-        }
-      }
-    }
+  //             $transaction->commit();
+  //           } catch (\Exception $e) {
+  //             $transaction->rollBack();
+  //             throw $e;
+  //           } catch (\Throwable $e) {
+  //             $transaction->rollBack();
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
 
-    if ($descriptionList) {
-      foreach ($descriptionList as $item) {
+  //   if ($descriptionList) {
+  //     foreach ($descriptionList as $item) {
 
-        $descriptionText = $this->getSummary($item->details[0]->detail_text, $account);
-        // print_r($item->details[0]->detail_text);
-        // exit;
+  //       $descriptionText = $this->getSummary($item->details[0]->detail_text, $account);
+  //       // print_r($item->details[0]->detail_text);
+  //       // exit;
 
-        if ($item->details[0]->detail_text) {
-          $item->summary = $this->getSummary($descriptionText, $account);
-          $item->summary_status = 3;
+  //       if ($item->details[0]->detail_text) {
+  //         $item->summary = $this->getSummary($descriptionText, $account);
+  //         $item->summary_status = 3;
 
-          $transaction = Yii::$app->db->beginTransaction();
-          try {
-            $item->save();
-            $transaction->commit();
-          } catch (\Exception $e) {
-            $transaction->rollBack();
-            throw $e;
-          } catch (\Throwable $e) {
-            $transaction->rollBack();
-          }
-        }
-      }
-    }
-  }
+  //         $transaction = Yii::$app->db->beginTransaction();
+  //         try {
+  //           $item->save();
+  //           $transaction->commit();
+  //         } catch (\Exception $e) {
+  //           $transaction->rollBack();
+  //           throw $e;
+  //         } catch (\Throwable $e) {
+  //           $transaction->rollBack();
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
 
   // Загружает аудиозапись в Яндекс Storage;
   public function uploadYandexStorage($uploadPath, $fileName, $account)
