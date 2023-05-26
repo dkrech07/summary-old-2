@@ -55,7 +55,6 @@ class m230519_125446_main_structure extends Migration
             'title' => $this->string(256)->notNull(),
             'file' => $this->text(),
             'decode_id' => $this->text(),
-            'detail' => $this->text(),
             'summary' => $this->text(),
             'created_user' => $this->integer()->notNull(),
             'created_at' => $this->dateTime()->notNull(),
