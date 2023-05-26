@@ -38,7 +38,7 @@ tests/_support/_generated
 #config
 /config/db.php
 /config/db.php.save
-
+no
 #runtime
 /runtime
 

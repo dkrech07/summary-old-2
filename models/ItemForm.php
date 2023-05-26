@@ -41,7 +41,7 @@ class ItemForm extends Model
       [['title'], 'required'],
       [['detail', 'summary'], 'string'],
       [['title'], 'string', 'max' => 256],
-      [['file'], 'file', 'extensions' => 'mp3, wav, ogg'],
+      [['file'], 'file', 'extensions' => 'mp3, wav, ogg',],
     ];
   }
 

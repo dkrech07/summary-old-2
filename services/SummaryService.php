@@ -210,25 +210,25 @@ class SummaryService
 
     if ($descriptionList) {
       foreach ($descriptionList as $item) {
-        // print_r($item);
-        // exit;
 
         $descriptionText = $this->getSummary($item->details[0]->detail_text, $account);
+        // print_r($item->details[0]->detail_text);
+        // exit;
 
-        if ($descriptionText) {
+        if ($item->details[0]->detail_text) {
           $item->summary = $this->getSummary($descriptionText, $account);
           $item->summary_status = 3;
-        }
 
-        $transaction = Yii::$app->db->beginTransaction();
-        try {
-          $item->save();
-          $transaction->commit();
-        } catch (\Exception $e) {
-          $transaction->rollBack();
-          throw $e;
-        } catch (\Throwable $e) {
-          $transaction->rollBack();
+          $transaction = Yii::$app->db->beginTransaction();
+          try {
+            $item->save();
+            $transaction->commit();
+          } catch (\Exception $e) {
+            $transaction->rollBack();
+            throw $e;
+          } catch (\Throwable $e) {
+            $transaction->rollBack();
+          }
         }
       }
     }
@@ -256,7 +256,7 @@ class SummaryService
 
     try {
       $result = $uploader->upload();
-      echo "Upload complete: {$result['ObjectURL']}\n";
+      // echo "Upload complete: {$result['ObjectURL']}\n";
     } catch (MultipartUploadException $e) {
       echo $e->getMessage() . "\n";
     }
@@ -292,7 +292,7 @@ class SummaryService
             'model' => 'general',
             // 'profanityFilter' => true,
             'audioEncoding' => $extensionsMap[$extension],
-            // 'sampleRateHertz' => '48000',
+            'sampleRateHertz' => '16000',
             // 'audioChannelCount' => '1',
             'literature_text' => true,
           ]

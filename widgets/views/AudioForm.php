@@ -15,7 +15,7 @@ use app\components;
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="modalLabel">Загрузка айдиозаписи диалога</h5>
+        <h5 class="modal-title" id="modalLabel">Загрузка аудиозаписи диалога</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
       </div>
       <?php $form = ActiveForm::begin(['id' => 'item-form', 'options' => ['enctype' => 'multipart/form-data']]) ?>

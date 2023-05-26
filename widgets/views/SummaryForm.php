@@ -26,7 +26,7 @@ use yii\widgets\ActiveForm;
       <div class="modal-footer">
         <div class="tabs"></div>
         <div class="controls">
-          <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+          <!-- <button type="submit" class="btn btn-primary">Сохранить изменения</button> -->
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
         </div>
       </div>
