@@ -12,6 +12,8 @@ use app\models\ContactForm;
 use app\models\User;
 use app\models\SignupForm;
 use app\services\SummaryService;
+use app\services\DescriptionServise;
+
 use yii\data\ActiveDataProvider;
 use yii\data\Pagination;
 use app\models\ItemForm;
@@ -97,7 +99,7 @@ class SiteController extends SecuredController
             }
         }
 
-        // $summaryService->getDescription();
+        $DescriptionServise->getDescription();
 
         if (\Yii::$app->request->isAjax && \Yii::$app->request->post()) {
             $request = Yii::$app->request;
