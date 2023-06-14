@@ -49,6 +49,8 @@ $config = [
                 '/' => '/auth/index',
                 '/signup' => '/signup/index',
                 '/site' => '/site/index',
+                '/cron' => '/cron/index',
+                // '/log' => '/log/log',
             ],
         ],
     ],

@@ -16,6 +16,7 @@ use Aws\S3\MultipartUploader;
 use Aws\Exception\MultipartUploadException;
 use GuzzleHttp\Client;
 use Orhanerday\OpenAi\OpenAi;
+use app\services\SummaryService;
 
 use Aws\Exception\AwsException;
 use yii\web\UploadedFile;
@@ -24,7 +25,6 @@ use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Psr7\Request;
 
-use app\services\SummaryService;
 
 class DescriptionServise
 {
@@ -38,7 +38,11 @@ class DescriptionServise
 
     $summaryService = new SummaryService;
 
+    // print_r($summaryService);
+
     $account = $summaryService->accessCheck();
+
+    // print_r($account);
 
     if (!$account) {
       return;
@@ -127,6 +131,7 @@ class DescriptionServise
           }
         }
       }
+      // $this->refresh();
     }
   }
 }

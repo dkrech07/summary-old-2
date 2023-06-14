@@ -41,3 +41,11 @@ php yii fixture/generate fixture 1 --count=10
 php yii fixture/generate fixture 2 --count=10
 php yii fixture/generate fixture 3 --count=50
 ...
+
+Фоновый процесс для получения подробного и краткого описания по Крону:
+
+cd ~/summary.na4u.ru/ && /home/c75780/summary.na4u.ru/yii_project/vendor/yiisoft/yii2/yii cron -m=cron
+
+cd ~/summary.na4u.ru/ && ./bin/php ~/summary.na4u.ru/yii_project/vendor/yiisoft/yii2/yii ~/summary.na4u.ru/yii_project/commands/LogController.php log -m=log
+
+cd ~/summary.na4u.ru/ && ./bin/php ~/summary.na4u.ru/yii_project/vendor/yiisoft/yii2/Yii.php log/write

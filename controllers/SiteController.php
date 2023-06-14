@@ -52,7 +52,11 @@ class SiteController extends SecuredController
         $itemFormModel = new ItemForm();
         $accountFormModel = new accountForm();
 
-        $descriptionServise = new DescriptionServise;
+        // $descriptionServise = new DescriptionServise;
+
+        // $descriptionServise = new DescriptionServise;
+        // $descriptionServise->getDescription();
+
 
         // Вывод элементов на странице
         $query = Summary::find()
@@ -101,8 +105,6 @@ class SiteController extends SecuredController
             }
         }
 
-        $descriptionServise->getDescription();
-
         if (\Yii::$app->request->isAjax && \Yii::$app->request->post()) {
             $request = Yii::$app->request;
             $data = $request->post();
@@ -112,6 +114,9 @@ class SiteController extends SecuredController
                 return json_encode('test', JSON_UNESCAPED_UNICODE);
             }
         }
+
+        // $descriptionServise = new DescriptionServise;
+        // $descriptionServise->getDescription();
 
         return $this->render(
             'index',
